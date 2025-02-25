@@ -5,7 +5,7 @@ import './App.css';
 import NavBar from './components/Navbar';
 import ChatBox from './components/ChatBox';
 import ChatList from './components/ChatList';
-import NewChat from './components/NewChat';
+import UsersList from './components/UsersList';
 import Welcome from './components/Welcome';
 import { setDoc, doc } from 'firebase/firestore';
 import { db } from './firebase';
@@ -42,13 +42,26 @@ const App = () => {
       {!user ? (
         <Welcome />
       ) : (
-        <div className="chat-container">
-          <ChatList setCurrentChat={setCurrentChat} />
-          {currentChat ? (
-            <ChatBox chatId={currentChat.id} chat={currentChat} />
-          ) : (
-            <NewChat setCurrentChat={setCurrentChat} />
-          )}
+        <div className="app-container">
+          <div className="sidebars-container">
+            <aside className="users-sidebar">
+              <UsersList setCurrentChat={setCurrentChat} />
+            </aside>
+            <aside className="chats-sidebar">
+              <ChatList setCurrentChat={setCurrentChat} currentChat={currentChat} />
+            </aside>
+          </div>
+          
+          <main className="chat-main">
+            {currentChat ? (
+              <ChatBox chatId={currentChat.id} chat={currentChat} />
+            ) : (
+              <div className="select-chat-prompt">
+                <h2>Select a user to start chatting</h2>
+                <p>Choose from the list of users on the left</p>
+              </div>
+            )}
+          </main>
         </div>
       )}
     </div>

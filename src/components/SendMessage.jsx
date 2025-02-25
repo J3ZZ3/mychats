@@ -1,108 +1,84 @@
-import React, { useState, useEffect } from "react";
-import { auth, db } from "../firebase";
-import { collection, addDoc, serverTimestamp, doc, updateDoc } from "firebase/firestore";
+import React, { useState, useRef } from "react";
+import { auth, db, storage } from "../firebase";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 const SendMessage = ({ chatId }) => {
   const [message, setMessage] = useState("");
-  const [autoSaveTimer, setAutoSaveTimer] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef();
 
-  // Auto-save functionality
-  useEffect(() => {
-    // Clear previous timer on unmount
-    return () => {
-      if (autoSaveTimer) clearInterval(autoSaveTimer);
-    };
-  }, []);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (message.trim() === "" && !fileInputRef.current?.files?.length) return;
 
-  const startAutoSave = () => {
-    // Clear any existing timer
-    if (autoSaveTimer) clearInterval(autoSaveTimer);
-    
-    // Create new timer that saves every 10 seconds
-    const timer = setInterval(async () => {
-      if (message.trim()) {
-        try {
-          const draftRef = doc(db, 'chats', chatId, 'drafts', auth.currentUser.uid);
-          await updateDoc(draftRef, {
-            text: message.trim(),
-            updatedAt: serverTimestamp()
-          });
-        } catch (error) {
-          console.error("Error saving draft:", error);
-        }
+    const attachments = [];
+    if (fileInputRef.current?.files?.length) {
+      setIsUploading(true);
+      for (const file of fileInputRef.current.files) {
+        const storageRef = ref(storage, `chats/${chatId}/${Date.now()}_${file.name}`);
+        await uploadBytes(storageRef, file);
+        const url = await getDownloadURL(storageRef);
+        attachments.push({
+          url,
+          type: file.type,
+          name: file.name
+        });
       }
-    }, 10000); // 10 seconds
-
-    setAutoSaveTimer(timer);
-  };
-
-  const sendMessage = async (event) => {
-    event.preventDefault();
-    
-    if (!chatId || message.trim() === "") return;
-
-    try {
-      const messageData = {
-        text: message.trim(),
-        uid: auth.currentUser.uid,
-        name: auth.currentUser.displayName || 'Anonymous',
-        avatar: auth.currentUser.photoURL || '',
-        createdAt: serverTimestamp()
-      };
-
-      // Add message to subcollection
-      const messagesRef = collection(db, 'chats', chatId, 'messages');
-      await addDoc(messagesRef, messageData);
-
-      // Update chat's lastMessage and updatedAt
-      const chatRef = doc(db, 'chats', chatId);
-      await updateDoc(chatRef, {
-        lastMessage: message.trim(),
-        updatedAt: serverTimestamp()
-      });
-
-      // Clear the draft after sending
-      const draftRef = doc(db, 'chats', chatId, 'drafts', auth.currentUser.uid);
-      await updateDoc(draftRef, {
-        text: '',
-        updatedAt: serverTimestamp()
-      });
-
-      // Clear the input field
-      setMessage("");
-    } catch (error) {
-      console.error("Error sending message:", error);
+      setIsUploading(false);
+      fileInputRef.current.value = '';
     }
-  };
 
-  // Start auto-save when typing begins
-  const handleInputChange = (e) => {
-    setMessage(e.target.value);
-    if (!autoSaveTimer) {
-      startAutoSave();
-    }
+    await addDoc(collection(db, `chats/${chatId}/messages`), {
+      text: message.trim(),
+      createdAt: serverTimestamp(),
+      uid: auth.currentUser.uid,
+      name: auth.currentUser.displayName,
+      avatar: auth.currentUser.photoURL,
+      attachments
+    });
+
+    setMessage("");
   };
 
   return (
     <div className="send-message">
-      <form onSubmit={sendMessage}>
-        <div className="message-input-container">
+      <form onSubmit={handleSubmit} className="message-input-container">
+        <button 
+          type="button" 
+          className="attachment-button"
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <svg viewBox="0 0 24 24" width="24" height="24">
+            <path fill="currentColor" d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5c0-1.38 1.12-2.5 2.5-2.5s2.5 1.12 2.5 2.5v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5c0 1.38 1.12 2.5 2.5 2.5s2.5-1.12 2.5-2.5V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.04 2.46 5.5 5.5 5.5s5.5-2.46 5.5-5.5V6h-1.5z"/>
+          </svg>
+        </button>
+        <input 
+          type="file"
+          ref={fileInputRef}
+          className="file-input"
+          multiple
+          accept="image/*,.pdf,.doc,.docx"
+          style={{ display: 'none' }}
+        />
+        <div className="message-input-wrapper">
           <input
             type="text"
-            className="form-input__input"
-            placeholder="Type a message..."
             value={message}
-            onChange={handleInputChange}
-            style={{ color: 'var(--text-primary)' }}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder="Type a message..."
+            className="message-input"
           />
-          <button 
-            type="submit" 
-            className="send-button"
-            disabled={!chatId || message.trim() === ""}
-          >
-            Send
-          </button>
         </div>
+        <button 
+          type="submit" 
+          className="send-button"
+          disabled={isUploading || (message.trim() === "" && !fileInputRef.current?.files?.length)}
+        >
+          <svg viewBox="0 0 24 24" width="24" height="24">
+            <path fill="currentColor" d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+          </svg>
+        </button>
       </form>
     </div>
   );

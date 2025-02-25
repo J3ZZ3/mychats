@@ -2,17 +2,19 @@ import { initializeApp } from "firebase/app";
 
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
-    apiKey: "AIzaSyCSz62FdByLc--MIAGyW63Bu_zYWdRqX5Y",
-    authDomain: "sessions-63c09.firebaseapp.com",
-    databaseURL: "https://sessions-63c09-default-rtdb.europe-west1.firebasedatabase.app",
-    projectId: "sessions-63c09",
-    storageBucket: "sessions-63c09.firebasestorage.app",
-    messagingSenderId: "400978746959",
-    appId: "1:400978746959:web:bf07cbd1da3d451a16143a"
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+    databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+    appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+export const storage = getStorage(app);
